@@ -531,7 +531,7 @@ class GestoreThreads:
 				th.setDaemon(True)
 				th.start()
 			self.lock.release()
-			print 'scarica info user aspetto terminazione thread'
+			print 'aspetto terminazione thread'
 			t_inesecuzione.join()
 			if num_threads >= self.lenlista:
 				break
@@ -593,8 +593,7 @@ class TwitterMiner:
 		genero il grafo indiretto in formato gexf
 		i nodi rappresentano gli utenti twitter
 		ogni nodo possiede gli attributi estratti dalle info dell'utente
-		TODO: salvare i nodi con ids sempre!! aggiungere tutti i
-		followers del target 
+		TODO:
 		'''
 		self.__set_target(target)
 		counter = 0
@@ -724,47 +723,6 @@ class TwitterMiner:
 #		self.gthreads.set_lenacc(len(accounts))
 		self.gthreads.lancia_threads()
 
-
-		'''
-		lenlista = len(lista)
-		num_threads = 0
-		maxthreads = 20
-
-		self.__set_operation('undirectedgraph')
-		while True:
-			self.lock.acquire()
-			print '\t IMPORTANTE UNDIRECTED'
-			print '\t th in attesa: '+str(t_inattesa.qsize())
-			print '\t th in exec: '+str(t_inesecuzione.qsize())
-			total = t_inesecuzione.qsize()
-			mancanti = self.__thread_mancanti(len(lista),num_threads)
-			print '\t MANCANTI: '+str(mancanti)
-			if mancanti < maxthreads:
-				corse = mancanti
-			else: corse = maxthreads
-			print '\t NUMTHREAD: '+str(num_threads)
-			print '\t len list: '+str(len(lista))
-			print '\t #CORSE: '+str(corse)
-			for i in range(corse):
-				self.__crea_threads(1, [lista.pop() for x in range(1)], 0)
-				num_threads += 1
-			for y in range(len(self.lista_threads)):
-				#print 'avvio un thread'
-				th = self.lista_threads.pop()
-				th.setDaemon(True)
-				t_inesecuzione.put(th)
-				t_terminati.put(th)
-				th.start()
-			print 'aspetto th in exec'
-			self.lock.release()
-			t_inesecuzione.join()
-			print 'th in exec rientrati'
-			if num_threads >= lenlista:
-				break
-		print '\t FUORI WHILE ASPETTO TERMINATI'
-		t_terminati.join()
-		print '\t THIS IS THE END'
-		'''
 	def __scegli_account_random(self, path, num):
 		lista = []
 		ret = []
