@@ -27,7 +27,12 @@ t_inesecuzione = Queue.Queue()
 t_terminati = Queue.Queue()
 
 lista_followers_target = []
+lista_nodi_grafo = []
+counter = 0
 
+'''
+Classe che gestisce i thread minatori
+'''
 class MinerThreads(threading.Thread):
 	'''
 	os.chdir IS THREAD UNSAFE
@@ -76,7 +81,7 @@ class MinerThreads(threading.Thread):
 			print "Unexpected error:", sys.exc_info()[0]
 			raise
 		limit = rate['resources']['users']['/users/show']['remaining']
-		print self.name+' il limite users/show e: ' + str(limit)+' '+str(self.target)+' twitter vale: '+ str(self.twitter.get_authorized_tokens)
+#		print self.name+' il limite users/show e: ' + str(limit)+' '+str(self.target)+' twitter vale: '+ str(self.twitter.get_authorized_tokens)
 		return limit
 	def __check_f_limit(self):
 		'''
@@ -100,6 +105,9 @@ class MinerThreads(threading.Thread):
 		print self.name+' il limite e: ' + str(limit)+' '+str(self.target)+' twitter vale: '+ str(self.twitter.get_authorized_tokens)
 		return limit
 	def __salva_dati(self, data, flag, objtarget):
+		'''
+		Salva i dati restituiti dalle api twitter
+		'''
 		if not flag:
 			if objtarget == 'friends':
 				follopath = self.origin+'/friends_'+self.target+'.txt'
@@ -129,8 +137,7 @@ class MinerThreads(threading.Thread):
 		fpout.close()
 	def __salva_user_info(self):
 		'''
-		TODO: Controllo se le info sono già state scaricate, nel caso
-		return
+		Recupera e salva le user info del target
 		'''
 		data = ''
 		info = None
@@ -204,12 +211,12 @@ class MinerThreads(threading.Thread):
 		follower e se uno specifico twitter id e' stato gia' analizzato
 		'''
 		try:
-			cursor_file = open(cursorpath,'w')
+			cursor_file = open(cursorpath,'a')
 		except:
 			print '\t\t\tASD5'
 			pass
 		cursor_file.write(str(cursore))
-		cursor_file.flush()
+#		cursor_file.flush()
 		cursor_file.close()
 	def __dormi(self, cursore, flag):
 		'''
@@ -233,7 +240,7 @@ class MinerThreads(threading.Thread):
 		self.lock.release()
 	def __controllo_target(self, objtarget):
 		'''
-		controllo se il target id non ha troppi followers
+		controllo se il target id non ha troppi followers o friends
 		'''
 		userpath = self.origin+'/followers/'+self.target+'/user_info_'+self.target+'.txt'
 		try:
@@ -253,6 +260,9 @@ class MinerThreads(threading.Thread):
 					return 1
 		return 0
 	def __my_write_error(self,data,flag):
+		'''
+		handling degli errori
+		'''
 		if not flag:
 			errorpath = self.origin+'/errori_'+self.target+'.txt'
 			try:
@@ -275,6 +285,7 @@ class MinerThreads(threading.Thread):
 		fpout.close()
 	def __get_friends(self, flag):
 		'''
+		Recupera la lista dei friends
 		TODO: 
 		'''
 		test = 1
@@ -305,7 +316,8 @@ class MinerThreads(threading.Thread):
 							nextcursor = data['next_cursor']
 							self.__salva_dati(data, flag, 'friends')
 					except TwythonRateLimitError, e:
-						print self.name+' '+self.target+' get_followers twython RATELIMITERROR'+str(e)
+						print self.name+' '+self.target+'get_friends twython RATELIMITERROR '+str(e)+ \
+						' TWYTHON: '+ str(self.twitter.get_authorized_tokens)
 						self.__my_write_error(str(e),flag)
 						self.__dormi(nextcursor, flag)
 						nextcursor=self.__check_cursore(flag)
@@ -313,12 +325,12 @@ class MinerThreads(threading.Thread):
 						''' qui non è un errore di rate limit
 							es: errore 401
 						'''
-						print self.name+self.target+' get_friends twython error'+str(e)
+						print self.name+' '+self.target+' get_friends twython error'+str(e)
 						print str(e.error_code)
-						self.__my_write_error(str(e),flag)
-						#self.__dormi(nextcursor, flag)
-						#nextcursor=self.__check_cursore(flag)
-						break
+						err = str(e)+' ' +str(self.name)+' ' \
+						+str(self.target)
+						self.__my_write_error(err,flag)
+						return -1
 					except ConnectionError, e:
 						print 'get_friends cazzo cazzo iu iu'+str(e)
 						self.__dormi(nextcursor,flag)
@@ -329,6 +341,7 @@ class MinerThreads(threading.Thread):
 			return
 	def __get_followers(self, flag):
 		'''
+		Recupera la lista dei followers
 		flag False quando sto scaricando i followers del target, True
 		quando sto scaricando i followers dei followers
 		'''
@@ -361,7 +374,9 @@ class MinerThreads(threading.Thread):
 							nextcursor = data['next_cursor']
 							self.__salva_dati(data, flag, 'followers')
 					except TwythonRateLimitError, e:
-						print self.name+' '+self.target+' get_followers twython RATELIMITERROR'+str(e)
+						print self.name+' '+self.target+' get_followers twython RATELIMITERROR'+str(e)+\
+						' TWYTHON: '+ str(self.twitter.get_authorized_tokens)
+						print 'chiamato con arcobaleno: '+str(self.arcobaleno)+ ' con target: '+self.target
 						self.__my_write_error(str(e),flag)
 						#if not flag:
 						#	self.__salva_cursore(nextcursor, flag)
@@ -371,11 +386,14 @@ class MinerThreads(threading.Thread):
 						print 'mi sono svegliato e il cursore vale: '+str(nextcursor)
 					except TwythonError, e:
 						print self.name+' '+self.target+' get_followers twythonerror '+str(e)
-						self.__my_write_error(str(e),flag)
+						print 'chiamato con arcobaleno: '+str(self.arcobaleno)+ ' con target: '+self.target
+						err = str(e)+' ' +str(self.name)+' ' \
+						+str(self.target)
+						self.__my_write_error(err,flag)
+						return -1
 						#self.__dormi(nextcursor, flag)
 						#nextcursor=self.__check_cursore(flag)
 						#print 'mi sono svegliato e il cursore vale: '+str(nextcursor)
-						break
 					except ConnectionError, e:
 						print 'cazzo cazzo iu iu'+str(e)
 						self.__dormi(nextcursor,flag)
@@ -387,37 +405,15 @@ class MinerThreads(threading.Thread):
 		else:
 			print '\t AAAA target con troppi followers: '+self.target
 			return
-	def __undirected_graph_helper(self):
-		usepath = os.getcwd()
-#		listdirs = os.listdirs(os.getcwd())
-		seta = setb = None
-		try:
-			fp_a = open(usepath+'/'+self.target+'/'+'followers_'+self.target+'.txt', 'r')
-		except IOError, e:
-			print 'UNDIRECTED ERRORE FOLLOWERS: '+str(e)
-			print usepath+'/'+self.target+'/'+'followers_'+self.target+'.txt'
-			return
-		try:
-			fp_b = open(usepath+'/'+self.target+'/'+'friends_'+self.target+'.txt', 'r')
-		except IOError, e:
-			print 'UNDIRECTED ERRORE FRIENDS: '+str(e)
-			print usepath+'/'+self.target+'/'+'friends_'+self.target+'.txt'
-			return
-		seta = set(fp_a.readlines())
-		setb = set(fp_b.readlines())
-		setc = seta & setb
-		fpout = open(usepath+'/'+self.target+'/'+'undirected_'+self.target+'.txt', 'a')
-		for item in setc:
-			fpout.write(str(item))
-		fp_a.close()
-		fp_b.close()
-		fpout.close()
 	def run(self):
+		'''
+		Thread main
+		'''
 		global t_attesa, t_inesecuzione, coda_account
 		t_terminati.get(block=True)
 		self.twitter = self.__get_twython()
 		while True:
-			if self.operation == 'followers':
+			if self.operation == 'followers_target':
 				usepath = os.path.abspath(os.getcwd())
 				self.__get_followers(False)
 				print 'ricevuta lista followers del target!'
@@ -427,20 +423,27 @@ class MinerThreads(threading.Thread):
 				break
 			elif self.operation == 'followersandfriends':
 #				print '\t RECUPERO LISTA FOLLOWERS'
-				self.__get_followers(True)
+				ret = self.__get_followers(True)
 #				print '\t RECUPERO LISTA FRIENDS'
-				self.__get_friends(True)
+				if ret != -1: self.__get_friends(True)
 				break
+			'''
 			elif self.operation == 'undirectedgraph':
 				self.__undirected_graph_helper()
 				break
+			'''
 		self.__put_twython()
 		t_inesecuzione.get(block=True)
 		t_inesecuzione.task_done()
 		t_terminati.task_done()
-		print '\t THREAD '+self.name+' TERMINATO con target: '+self.target
+#		print '\t THREAD '+self.name+' TERMINATO con target: '+self.target
 
 class GestoreThreads:
+	'''
+	Gestisce l'esecuzione dei thread
+	viene creato un thread per ogni account e gli viene assegnato un
+	target
+	'''
 	def __init__(self, operation, lista, arcobaleno, num, lenacc):
 		self.operation = operation
 		self.lista = lista
@@ -481,15 +484,14 @@ class GestoreThreads:
 		'''
 		if len(lista) == 0:
 			for i in range(tnum):
-				t = MinerThreads(self.lock, target, self.operation, os.getcwd(),xxx)
+				t = MinerThreads(self.lock, str(target), self.operation, os.getcwd(),xxx)
 				self.lista_threads.append(t)
 		else:
 			for i in range(tnum):
 				t = MinerThreads(self.lock, lista.pop(), self.operation, os.getcwd(),xxx)
 				self.lista_threads.append(t)
 	def lancia_thread(self, target):
-
-			self.__crea_threads(1, self.lista, 1, target)
+			self.__crea_threads(1, self.lista, self.arcobaleno, target)
 			th = self.lista_threads.pop()
 			t_inesecuzione.put(th)
 			t_terminati.put(th)
@@ -501,11 +503,13 @@ class GestoreThreads:
 		num_threads = 0
 		while True:
 			self.lock.acquire()
+			'''
 			print '\t NUMTHREAD: '+str(num_threads)
 			print '\t ITEM INIZIALI: '+str(self.lenlista)
 			print '\t ITEM MANCANTI: '+str(len(self.lista))
 			print '\t #TERMINAZIONE THREAD '+str(t_terminati.qsize())
 			print '\t #THREAD IN ATTESA: '+str(t_inattesa.qsize())
+			'''
 			if t_inattesa.qsize() == self.lenacc:
 				print '\t aspetto tutti i thread in attesa'
 				self.lock.release()
@@ -520,7 +524,7 @@ class GestoreThreads:
 					corse = mancanti
 			else:
 				corse = self.lenacc-total
-			print '\t creo %s corse!' % corse
+			#print '\t creo %s corse!' % corse
 			for corsa in range(corse):
 				self.__crea_threads(1, [self.lista.pop() for x in range(1)], 0, 0) #qui il target non conta
 				num_threads += 1
@@ -547,6 +551,8 @@ class TwitterMiner:
 		self.gthreads = GestoreThreads(None,[],None, None, len(self.accounts))
 	def __set_target(self,target):
 		self.target = target
+	def __get_target(self):
+		return self.target
 	def __makeTwythonObj(self):
 		global coda_account
 		for i in range(len(self.accounts)):
@@ -556,7 +562,8 @@ class TwitterMiner:
             headers={'User-Agent':'__twython_Test'}) )
 	def __parser_info(self, dest):
 		myinfo = ['verified', 'default_profile', 'geo', 'geo_enabled',
-		'followers_count', 'friends_count', 'screen_name', 'id']
+		'followers_count', 'friends_count', 'screen_name', 'id', 'protected']
+
 		'''
 		parsifico le informazioni dell'utente
 		per inserirle come attributi nel grafo
@@ -585,134 +592,186 @@ class TwitterMiner:
 		except IOError,e:
 			print '\t azz '+dest+' '+str(e)
 			yield -1,-1
-	def __gexf_itera_nodo(self):
-		pass
-	def __genera_gexf(self, target, output_file):
-		global lista_followers_target
-		'''
-		genero il grafo indiretto in formato gexf
-		i nodi rappresentano gli utenti twitter
-		ogni nodo possiede gli attributi estratti dalle info dell'utente
-		TODO:
-		'''
-		self.__set_target(target)
-		counter = 0
-		local_path = os.getcwd()
-		os.chdir('../')
+	
+	def __aggiungi_att(self, nodo, idAtt, valoreAtt):
+		nodo.addAttribute(idAtt,valoreAtt)
+	def __aggiungi_arco(self, grafo, cont, source, target):
+		try:
+			grafo.addEdge(cont, source,target)
+		except:
+			print 'SOURCE: '+source+' TARGET: '+target
+			print "Unexpected error:", sys.exc_info()[0]
+			raise
+	def __aggiungi_nodo(self, grafo, node):
+		n3 = grafo.addNode(node,node)
+		return n3
+
+	def genera_gexf(self, target, output_file):
+		idAtt = {'followers_count':['1', 'integer'], \
+				'friends_count':['1','integer'], \
+				'screen_name':['-1', 'string'], \
+				'verified':['false', 'boolean'], \
+				'default_profile':['false', 'boolean'],\
+				'geo_enabled':['false', 'boolean'],\
+				'protected':['false','boolean']
+				}
+		idItem = []
+		print '\t DEBUG GENERA GEXF'
+		startpath = os.getcwd()
 		fp_out = open(output_file,'w')
-		tweet = dict(self.__parser_info(self.target))
-		os.chdir(local_path)
 		gexf = Gexf("Valerio Costamagna","Grafo dei followers_counters di un dato utente")
 		graph=gexf.addGraph("undirected","static","complex network graph")
-		idAttInDegree=graph.addNodeAttribute("T-In-Degree","-1","integer")
-		idAttOutDegree=graph.addNodeAttribute("T-Out-Degree","-1","integer")
+		for key in idAtt.keys():
+			idItem.append(graph.addNodeAttribute(key, idAtt[key][0], \
+			idAtt[key][1]))
+		tweet = dict(self.__parser_info(self.target))
+		n = self.__aggiungi_nodo(graph,tweet['id'].strip('\n'))
+		lista = idAtt.items()
+		for item in idItem:
+			n.addAttribute(item, tweet[str(lista[int(item)][0])].strip().strip('\n'))
 		idAttDegree=graph.addNodeAttribute("T-Degree","-1","integer")
-		idAttName=graph.addNodeAttribute("screen_name","None","string")
-		idAttVerified=graph.addNodeAttribute("verified","false","boolean")
-		idAttDefault=graph.addNodeAttribute("default_profile","false","boolean")
-		idAttGeo=graph.addNodeAttribute("geo_enabled","false","boolean")
-		idAttPriv=graph.addNodeAttribute("private","false","boolean")
 		idAttFiglio=graph.addNodeAttribute("figlio","false","boolean")
-		#n = graph.addNode(self.target,tweet['screen_name'].strip())
-		'''
-		aggiungo il nodo rappresentante il target
-		'''
-		n = graph.addNode(tweet['id'].strip('\n'),tweet['id'].strip('\n'))
-#		print 'cerco gli amici dei followers del target, che sono: '+str(len(lista_followers_target))
-		listdirs = os.listdir(os.getcwd())
-#		print 'len listdir: '+str(len(listdirs))
-		'''
-		for node in lista_followers_target:
-			node = str(node)
-			if node not in listdirs:
-				node.strip('\n')
-				graph.addNode(node, node)
-				graph.addEdge(counter, node, tweet['id'])
-				counter += 1
-		'''
-#		print 'aggiunti tutti i followers del target'
-		n.addAttribute(idAttInDegree,str(int(tweet['followers_count'])))
-		n.addAttribute(idAttOutDegree,str(int(tweet['friends_count'])))
-		n.addAttribute(idAttDegree,str(int(tweet['friends_count'].strip('\n'))+int(tweet['followers_count'].strip('\n'))))
-		n.addAttribute(idAttName,str(tweet['screen_name']))
-		self.__call_undirected_graph_helper(os.listdir(os.getcwd()))
-		print 'analizzo i friends dei followers del target'
-		'''
-		itero su ogni followers del target
-		'''
-		for adir in listdirs:
-			adir = adir.strip('\n')
-			os.chdir(adir)
-			tweet2 = dict(self.__parser_info(adir))
-			tweet2['screen_name'] = tweet2['screen_name'].strip('\n').strip()
-#			n2 = graph.addNode(tweet2['screen_name'],tweet2['screen_name'])
-			'''
-			aggiungo il nodo rappresentate il follower del target
-			'''
-			n2 = graph.addNode(tweet2['id'].strip('\n'), tweet2['id'].strip('\n'))
-			graph.addEdge(counter, tweet2['id'], tweet['id'] )
-			counter += 1
-			if not tweet2.has_key(-1):
-				'''
-				se sono disponibili gli attributi gli aggiungo al grafo
-				'''
-				n2.addAttribute(idAttInDegree,str(int(tweet2['followers_count'].strip('\n'))))
-				n2.addAttribute(idAttOutDegree,str(int(tweet2['friends_count'].strip().strip('\n'))))
-				n2.addAttribute(idAttDegree,str(int(tweet2['friends_count'].strip('\n'))+int(tweet2['followers_count'].strip('\n'))))
-				n2.addAttribute(idAttGeo,tweet2['default_profile'].strip('\n').strip())
-				n2.addAttribute(idAttVerified,tweet2['verified'].strip('\n').strip())
-				n2.addAttribute(idAttDefault,tweet2['geo_enabled'].strip('\n').strip())
-				tweet2['screen_name'] = tweet2['screen_name'].strip('\n').strip()
-				n2.addAttribute(idAttName,tweet2['screen_name'])
-				if not int(tweet2['friends_count']) > 15000:
-					try:
-						with open('undirected_'+str(adir)+'.txt','r') as fp2:
-							'''
-							itero per ogni FRIENDS del followers del
-							target
-							'''
-							for line in fp2:
-								line = line.strip()
-								line = line.strip('\n')
-								if not graph.nodeExists(line):
-									n3 = graph.addNode(line,line)
-									n3.addAttribute(idAttFiglio, 'True')
-								graph.addEdge(counter, line,tweet2['id'])
-								counter += 1
-								'''
-								Controllo se è nella lista dei followers
-								del target
-								'''
-								if line in lista_followers_target:
-									print 'aggiungo arco dal figlio del figlio al target'
-									graph.addEdge(counter, line, tweet['id'] )
-									counter += 1
-								'''
-								devo controllare se line è anche amico di
-								altri nodi nel grafo, più precisamente
-								se è amico di altre line. In quanto:
-								- se fosse amico del target sarebbe stato
-								  aggiunto al punto sopra
-								- se fosse amico di altri followers del
-								  target che sono stati analizzati
-								  sarà aggiunto o è già stato aggiunto
-								- rimane da controllare se è amico con
-								  altri amici dei followers del target
-								Per farlo devo scaricare followers,
-								friends e user_info di ogni line
-								'''
-					except NameError, e:
-						print '\t GEXF PUTTANA MADONNA BUCAIOLA'
-						print os.getcwd()+' followers_'+str(adir)+'.txt'
-						pass
-					except IOError, e:
-						pass
-			else:
-				print 'nodo senza attributi: '+ids
-				n2.addAttribute(idAttPriv, 'True')
-			os.chdir('../')
+		n.addAttribute(idAttDegree, \
+				str(int(tweet['friends_count'].strip('\n'))+int(tweet['followers_count'].strip('\n'))))
+		self.prova_ricorsiva_grafo(tweet['id'].strip('\n') , \
+				tweet['id'].strip('\n'), graph, idItem, idAtt, \
+				idAttDegree, idAttFiglio)
 		gexf.write(fp_out)
 		fp_out.close()
+		os.chdir(startpath)
+
+
+	def prova_ricorsiva_grafo(self, padre, target, grafo, idItem, idAtt, \
+			idAttDegree, idAttFiglio):
+		'''
+		TODO: INSERISCE ARCHI MULTIPLI; RISOLVERE
+		SE Y HA AMICO X FACCIO Y -> X, POI SE EVENTUALMENTE X È PRESENTE
+		FARÒ ANCHE X -> Y 
+		'''
+		global counter
+		##aggiungo attributi che non ricavo direttamente dalle user info
+		'''
+		devo costruire la path dinamicamente
+		'''
+		if padre != target:
+			tweet2 = dict(self.__parser_info(target))
+			if not grafo.nodeExists(target):
+				nodo = self.__aggiungi_nodo(grafo, target)
+				if not tweet2.has_key(-1):
+					lista = idAtt.items()
+					for item in idItem:
+						nodo.addAttribute(item, tweet2[str(lista[int(item)][0])].strip().strip('\n'))
+					nodo.addAttribute(idAttDegree,str(int(tweet2['friends_count'].strip('\n'))+int(tweet2['followers_count'].strip('\n'))))
+					nodo.addAttribute(idAttFiglio, 'false')
+			else:
+				nodo = grafo.getNode(target)
+				if len(nodo.getAttributes()) <= 1:
+					if not tweet2.has_key(-1):
+						lista = idAtt.items()
+						for item in idItem:
+							nodo.addAttribute(item, tweet2[str(lista[int(item)][0])].strip().strip('\n'))
+						nodo.addAttribute(idAttDegree,str(int(tweet2['friends_count'].strip('\n'))+int(tweet2['followers_count'].strip('\n'))))
+						nodo.addAttribute(idAttFiglio, 'false')
+			if not grafo.nodeExists(padre):
+				self.__aggiungi_nodo(grafo, padre)
+			if not grafo.edgeExists(target, padre):
+				self.__aggiungi_arco(grafo, counter, target, padre)
+			counter += 1
+		if os.path.exists('followers'):
+			os.chdir('followers')
+			listad = os.listdir(os.getcwd())
+			if len(listad) == 0: return
+			for adir in listad:
+				os.chdir(adir)
+				self.prova_ricorsiva_grafo(target, adir, grafo, idItem, \
+					idAtt, idAttDegree, idAttFiglio)
+				os.chdir('../')
+			os.chdir('../')
+			try:
+				fp = open('undirected_'+target+'.txt','r')
+				for line in fp:
+					line = line.strip().strip('\n')
+					if line in lista_nodi_grafo:
+						if not grafo.nodeExists(str(line)):
+							self.__aggiungi_nodo(grafo,str(line))
+						if not grafo.edgeExists(target,str(line)):
+							self.__aggiungi_arco(grafo,counter,target,str(line))
+							counter += 1
+			except IOError, e:
+				print 'NON HO TROVATO UNDIRECTED'
+				pass
+		else:
+			try:
+				fp_in = open('undirected_'+target+'.txt','r')
+				for line in fp_in:
+					line = line.strip().strip('\n')
+					if line in lista_nodi_grafo:
+						if not grafo.nodeExists(line):
+							n2 = self.__aggiungi_nodo(grafo,str(line))
+							n2.addAttribute(idAttFiglio, 'true')
+						if not grafo.edgeExists(str(line),target):
+							self.__aggiungi_arco(grafo, counter, str(line), target)
+							counter += 1
+					if line in lista_followers_target:
+						if not grafo.edgeExists(str(line),self.target):
+							self.__aggiungi_arco(grafo, counter, str(line), self.target)
+							counter += 1
+				fp_in.close()
+			except IOError, e:
+				print 'GRAFO: UNDIRECTED NOT FOUND!!'+os.getcwd() \
+						+'target: '+target+ ' padre: '+padre
+				return
+	def funky_debug(self,out):
+		o = open(out, 'a')
+		for line in lista_nodi_grafo:
+			o.write(line)
+		o.close()
+	def prova_ricorsiva(self, padre, target):
+		'''
+		Esegue la ricorsione nelle directory che rappresentano il grafo
+		e crea il file undirected per ogni dir
+		'''
+		if os.path.exists('followers'):
+			'''
+			print '\n ESISTE DIR FOLLOWERS'
+			print 'SONO IN: %s ' %os.getcwd()
+			print 'PADRE VALE: %s ' % padre
+			print 'TARGET VALE %s \n' %target
+			'''
+			os.chdir('followers')
+			listad = os.listdir(os.getcwd())
+			if len(listad) == 0: return
+			for adir in listad:
+				os.chdir(adir)
+				self.prova_ricorsiva(target, adir)
+				os.chdir('../')
+			os.chdir('../')
+		else:
+			'''
+			print '\nnon esiste dir followers'
+			print 'PADRE VALE: %s ' % str(padre)
+			print 'TARGET VALE: %s ' % str(target)
+			print 'sono dentro: %s ' % os.getcwd()
+			print 'fine ricorsione \n'
+			'''
+			try:
+				fp_a = open('followers_'+target+'.txt','r')
+				fp_b = open('friends_'+target+'.txt', 'r')
+				seta = set(fp_a.readlines())
+				setb = set(fp_b.readlines())
+				setc = seta.intersection(setb)
+				fpout = open('undirected_'+target+'.txt', 'w')
+				for item in setc:
+					fpout.write(item)
+				fp_a.close()
+				fp_b.close()
+				fpout.close()
+			except IOError, e:
+				print '\t ERRORE RICORSIONE NON TROVO FRIENDS E FOLL'
+				return
+			return
+			
+	'''
 	def __call_undirected_graph_helper(self, lista):
 
 		self.gthreads.set_operation('undirectedgraph')
@@ -722,8 +781,12 @@ class TwitterMiner:
 		self.gthreads.set_num(1)
 #		self.gthreads.set_lenacc(len(accounts))
 		self.gthreads.lancia_threads()
-
+	'''
 	def __scegli_account_random(self, path, num):
+		'''
+		Restituisce una lista casuale di elementi
+		contenuti nel file rappresentato dalla path
+		'''
 		lista = []
 		ret = []
 		random.seed()
@@ -731,9 +794,10 @@ class TwitterMiner:
 			fp = open(path, 'r')
 		except IOError, e:
 			print 'xxxxxxxxxxxxx '+str(e)
-			print 'path: '+str(path)
-			return -1
+			print 'path: '+str(path)+ 'sono in: '+os.getcwd()
+			return []
 		lines = fp.readlines()
+		if len(lines) < num: return [ lines.pop() for i in range(len(lines)) ]
 		for line in lines:
 			lista.append(line)
 		for i in range(num):
@@ -741,17 +805,12 @@ class TwitterMiner:
 			ret.append(lista.pop(index))
 		fp.close()
 		return ret
-	def genera_gexf(self, target, output_file):
-		print '\t DEBUG GENERA GEXF'
-		try:
-			os.chdir('followers')
-		except OSError, e:
-			print str(e)
-		self.__genera_gexf(target,output_file)
-	def scarica_followers(self):
+	def scarica_target(self,flag):
+		global lista_nodi_grafo
 		'''
 		TODO: prendere prima le userinfo per verificare
 		il numero di followers
+		Flag indica se sto passando un screen_name (1) o  un ids (0)
 		'''
 		empty_list = []
 		try:
@@ -760,38 +819,62 @@ class TwitterMiner:
 			print 'Followers e User info del target già presenti '+str(e)
 			if e.errno == 17:
 				os.chdir(os.getcwd()+'/'+self.target)
+				try:
+					f = open('user_info_'+self.target+'.txt', 'r')
+					l = f.readlines()
+					for line in l:
+						line = line.strip().strip('\n')
+						m = re.search('id_str', line)
+						if m:
+							key,val = line.split(':',1)
+							lista_nodi_grafo.append(val)
+					f.close()
+				except IOError, e:
+					pass
 				return
 			return
 		os.chdir(os.getcwd()+'/'+self.target)
-		print 'sono dentro'
-		self.gthreads.set_operation('followers')	
+		print 'SCARICA FOLLOWERS: sono dentro: '+os.getcwd()+' flag: '+str(flag)
+		self.gthreads.set_operation('followers_target')	
 		self.gthreads.set_num(1)
 		self.gthreads.set_lista(empty_list)
 		self.gthreads.set_lenlista(0)
-		self.gthreads.set_arcobaleno(1)
-#		self.gthreads.set_lenacc(1)
+		self.gthreads.set_arcobaleno(flag)
 		self.gthreads.lancia_thread(self.target)
 
 		self.gthreads.set_operation('userinfo')	
 		self.gthreads.set_num(1)
-		self.gthreads.set_lista([self.target])
+		self.gthreads.set_lista(empty_list)
 		self.gthreads.set_lenlista(1)
-		self.gthreads.set_arcobaleno(1)
-#		self.gthreads.set_lenacc(1)
+		self.gthreads.set_arcobaleno(flag)
 		self.gthreads.lancia_thread(self.target)
+		try:
+			f = open('user_info_'+self.target+'.txt', 'r')
+			l = f.readlines()
+			for line in l:
+				line = line.strip().strip('\n')
+				m = re.search('id_str', line)
+				if m:
+					key,val = line.split(':',1)
+					lista_nodi_grafo.append(val)
+			f.close()
+		except IOError, e:
+			pass
+
 
 	def scarica_followers_friends_of_user(self):
 		'''
-		anche qui devo ottimizzare con i thread
-		come sotto.
 		Per ogni dir in 'followers' scarica nella cartella dell utente
 		la lista dei suoi followers e dei suoi friends
-		TODO: scaricare lista friends
 		'''
 		start_path = os.getcwd()
 		print 'followers and friends: '+os.getcwd()+' '+self.target
 		ffpath = os.getcwd()+'/followers/'
-		listdirs = os.listdir(ffpath)
+		try:
+			listdirs = os.listdir(ffpath)
+		except OSError, e:
+			if e.errno == 2:
+				return
 		self.gthreads.set_operation('followersandfriends')
 		self.gthreads.set_lista(listdirs)
 		self.gthreads.set_lenlista(len(listdirs))
@@ -799,44 +882,59 @@ class TwitterMiner:
 		self.gthreads.set_num(1)
 #		self.gthreads.set_lenacc(len(self.accounts))
 		self.gthreads.lancia_threads()
-	def prepara_iterazione(self):
-		localpath = os.getcwd()
-		listdirs = os.listdir(os.getcwd()+'/followers/')
+		os.chdir(start_path)
+		self.prova_ricorsiva(self.target,self.target)
+
+	def prepara_iterazione(self, num):
+		'''
+		Ripete il processo di scaricamento followers and friends
+		su un nuovo target
+		'''
+		startpath = os.getcwd()
+		print 'PREPARA IT: sono stato lanciato dentro: '+startpath
+		os.chdir('followers')
+		listdirs = os.listdir(os.getcwd())
 		for adir in listdirs:
-			os.chdir(getcwd()+'/followers/'+adir)
-			fpin = open('undirected_'+adir, 'r')
-			os.mkdir('followers')
-			os.chdir('followers')
-			for line in fpin:
-				self.__set_target(line)
-				self.scarica_followers()
-		os.chdir(localpath)
+			print 'sono in: '+os.getcwd()+' vado in: '+adir
+			os.chdir(adir)
+			self.scarica_info('undirected_'+adir+'.txt', num)
+			self.scarica_followers_friends_of_user()
+			os.chdir('../')
+		os.chdir(startpath)
 
 
 	def scarica_info(self, followers_path, num):
 		'''
+		Scarica le informazioni degli utenti scelti casualmente
+		dal file followers_path
+		'''
+		global lista_nodi_grafo
+		'''
 		TODO: scegliere il numero casuale di followers in proporzione al
 		numero totale degli stessi.
 		'''
-		print 'inizio scarica info dei followers !!'
+		print 'SCARICA INFO: inizio scarica info dei followers !! sono in: '+os.getcwd()
 		start_path = os.getcwd()
 		lista = self.__scegli_account_random(followers_path, num)
+		if len(lista) == 0:
+			print "\nl'utente ha troppi pochi followers!!!\n"
+			return
 #		num = len(lista)
 		fpdebug = open('DEBUG.log', 'a')
 		for k in lista:
 			fpdebug.write(str(k))
+			lista_nodi_grafo.append(k.strip().strip('\n'))
 		fpdebug.close()
 		try:
 			os.mkdir('followers')
 		except OSError, e:
 			print '\t Scarica Info: Cartella followers esistente!!'
 			return
-		print '\t scarica_user_info DEBUG: '+str(len(lista))
 		self.gthreads.set_operation('userinfo')
 		self.gthreads.set_lista(lista)
 		self.gthreads.set_lenlista(len(lista))
 		self.gthreads.set_arcobaleno(0)
 		self.gthreads.set_num(1)
-#		self.gthreads.set_lenacc(len(self.accounts))
 		self.gthreads.lancia_threads()
+		print '\t IL GRAFO HA NUM NODI: '+str(len(lista_nodi_grafo))
 
