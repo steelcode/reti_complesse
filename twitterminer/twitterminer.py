@@ -26,8 +26,10 @@ coda_account = Queue.Queue()
 t_inesecuzione = Queue.Queue()
 t_terminati = Queue.Queue()
 
-lista_followers_target = []
-lista_nodi_grafo = []
+#lista_followers_target = []
+#lista_nodi_grafo = []
+diz_followers_target = {}
+diz_nodi_grafo = {}
 counter = 0
 
 '''
@@ -102,7 +104,8 @@ class MinerThreads(threading.Thread):
 			print "Unexpected error:", sys.exc_info()[0]
 			raise
 		limit = rate['resources']['followers']['/followers/ids']['remaining']
-		print self.name+' il limite e: ' + str(limit)+' '+str(self.target)+' twitter vale: '+ str(self.twitter.get_authorized_tokens)
+		print self.name+' il limite e: ' + str(limit)+ \
+		' '+str(self.target)+ ' twitter vale: '+ str(self.twitter.get_authorized_tokens)
 		return limit
 	def __salva_dati(self, data, flag, objtarget):
 		'''
@@ -119,7 +122,8 @@ class MinerThreads(threading.Thread):
 				print 'ASD2 '+str(follpath)+' '+str(e)
 				return
 			for ids in data['ids']:
-				lista_followers_target.append(ids)
+				#lista_followers_target.append(ids)
+				diz_followers_target[ids] = ids
 				fpout.write("%s\n" % str(ids)) #aggiunge un newline di troppo..
 		else:
 			if objtarget == 'followers':
@@ -230,9 +234,11 @@ class MinerThreads(threading.Thread):
 		t_inattesa.put(self)
 		t_inesecuzione.task_done()
 		self.lock.release()
-		print '\t '+self.name+' ANNUNCIAZIO buona notte, target: '+self.target+' attesa: '+str(t_inattesa.qsize())+' exec: '+str(t_inesecuzione.qsize())
+		print '\t '+self.name+' ANNUNCIAZIO buona notte, target: ' + \
+				self.target+' attesa: '+str(t_inattesa.qsize())+' exec: '+str(t_inesecuzione.qsize())
 		time.sleep(8*60)
-		print '\t '+self.name+' ANNUNCIAZIO SONO SVEGLIO!! '+self.target+' attesa: '+str(t_inattesa.qsize())+' exec: '+str(t_inesecuzione.qsize())
+		print '\t '+self.name+' ANNUNCIAZIO SONO SVEGLIO!! ' \
+				+self.target+' attesa: '+str(t_inattesa.qsize())+' exec: '+str(t_inesecuzione.qsize())
 		self.lock.acquire()
 		t_inattesa.get(block=True)
 		t_inesecuzione.put(self)
@@ -308,11 +314,14 @@ class MinerThreads(threading.Thread):
 				if True:
 					try:
 						if self.arcobaleno == 0:
-							data = self.twitter.get_friends_ids(user_id=self.target, cursor = nextcursor, count='5000', stringify_ids='true')
+							data = self.twitter.get_friends_ids(user_id=self.target,\
+									cursor = nextcursor, count='5000', stringify_ids='true')
 							nextcursor = data['next_cursor']
 							self.__salva_dati(data, flag, 'friends')
 						else:
-							data = self.twitter.get_friends_ids(screen_name=self.target, cursor = nextcursor, count='5000', stringify_ids='true')
+							data = self.twitter.get_friends_ids(screen_name=self.target, \
+									cursor = nextcursor, count='5000', \
+									stringify_ids='true')
 							nextcursor = data['next_cursor']
 							self.__salva_dati(data, flag, 'friends')
 					except TwythonRateLimitError, e:
@@ -374,7 +383,7 @@ class MinerThreads(threading.Thread):
 							nextcursor = data['next_cursor']
 							self.__salva_dati(data, flag, 'followers')
 					except TwythonRateLimitError, e:
-						print self.name+' '+self.target+' get_followers twython RATELIMITERROR'+str(e)+\
+						print self.name+' '+self.target+' get_followers twython RATELIMITERROR '+str(e)+\
 						' TWYTHON: '+ str(self.twitter.get_authorized_tokens)
 						print 'chiamato con arcobaleno: '+str(self.arcobaleno)+ ' con target: '+self.target
 						self.__my_write_error(str(e),flag)
@@ -516,7 +525,7 @@ class GestoreThreads:
 				t_inattesa.join()
 				self.lock.acquire()
 			total = t_inattesa.qsize() + t_inesecuzione.qsize()
-			mancanti = self.__thread_mancanti(len(self.lista), num_threads)
+			mancanti = self.__thread_mancanti(self.lenlista, num_threads)
 			if mancanti < self.lenacc:
 				if mancanti > (self.lenacc-total):
 					corse = self.lenacc-total
@@ -524,7 +533,7 @@ class GestoreThreads:
 					corse = mancanti
 			else:
 				corse = self.lenacc-total
-			#print '\t creo %s corse!' % corse
+			print '\t creo %s corse!' % corse
 			for corsa in range(corse):
 				self.__crea_threads(1, [self.lista.pop() for x in range(1)], 0, 0) #qui il target non conta
 				num_threads += 1
@@ -661,7 +670,8 @@ class TwitterMiner:
 					lista = idAtt.items()
 					for item in idItem:
 						nodo.addAttribute(item, tweet2[str(lista[int(item)][0])].strip().strip('\n'))
-					nodo.addAttribute(idAttDegree,str(int(tweet2['friends_count'].strip('\n'))+int(tweet2['followers_count'].strip('\n'))))
+					nodo.addAttribute(idAttDegree,str(int(tweet2['friends_count'].strip('\n'))+\
+							int(tweet2['followers_count'].strip('\n'))))
 					nodo.addAttribute(idAttFiglio, 'false')
 			else:
 				nodo = grafo.getNode(target)
@@ -670,7 +680,8 @@ class TwitterMiner:
 						lista = idAtt.items()
 						for item in idItem:
 							nodo.addAttribute(item, tweet2[str(lista[int(item)][0])].strip().strip('\n'))
-						nodo.addAttribute(idAttDegree,str(int(tweet2['friends_count'].strip('\n'))+int(tweet2['followers_count'].strip('\n'))))
+						nodo.addAttribute(idAttDegree,str(int(tweet2['friends_count'].strip('\n'))+\
+								int(tweet2['followers_count'].strip('\n'))))
 						nodo.addAttribute(idAttFiglio, 'false')
 			if not grafo.nodeExists(padre):
 				self.__aggiungi_nodo(grafo, padre)
@@ -691,7 +702,8 @@ class TwitterMiner:
 				fp = open('undirected_'+target+'.txt','r')
 				for line in fp:
 					line = line.strip().strip('\n')
-					if line in lista_nodi_grafo:
+#					if line in lista_nodi_grafo:
+					if line in diz_nodi_grafo:
 						if not grafo.nodeExists(str(line)):
 							self.__aggiungi_nodo(grafo,str(line))
 						if not grafo.edgeExists(target,str(line)):
@@ -705,14 +717,16 @@ class TwitterMiner:
 				fp_in = open('undirected_'+target+'.txt','r')
 				for line in fp_in:
 					line = line.strip().strip('\n')
-					if line in lista_nodi_grafo:
+#					if line in lista_nodi_grafo:
+					if line in diz_nodi_grafo:
 						if not grafo.nodeExists(line):
 							n2 = self.__aggiungi_nodo(grafo,str(line))
 							n2.addAttribute(idAttFiglio, 'true')
 						if not grafo.edgeExists(str(line),target):
 							self.__aggiungi_arco(grafo, counter, str(line), target)
 							counter += 1
-					if line in lista_followers_target:
+#					if line in lista_followers_target:
+					if line in diz_followers_target:
 						if not grafo.edgeExists(str(line),self.target):
 							self.__aggiungi_arco(grafo, counter, str(line), self.target)
 							counter += 1
@@ -723,7 +737,8 @@ class TwitterMiner:
 				return
 	def funky_debug(self,out):
 		o = open(out, 'a')
-		for line in lista_nodi_grafo:
+#		for line in lista_nodi_grafo:
+		for line in diz_nodi_grafo:
 			o.write(line)
 		o.close()
 	def prova_ricorsiva(self, padre, target):
@@ -806,7 +821,8 @@ class TwitterMiner:
 		fp.close()
 		return ret
 	def scarica_target(self,flag):
-		global lista_nodi_grafo
+#		global lista_nodi_grafo
+		global diz_nodi_grafo
 		'''
 		TODO: prendere prima le userinfo per verificare
 		il numero di followers
@@ -827,7 +843,8 @@ class TwitterMiner:
 						m = re.search('id_str', line)
 						if m:
 							key,val = line.split(':',1)
-							lista_nodi_grafo.append(val)
+#							lista_nodi_grafo.append(val)
+							diz_nodi_grafo[val] = val
 					f.close()
 				except IOError, e:
 					pass
@@ -856,7 +873,8 @@ class TwitterMiner:
 				m = re.search('id_str', line)
 				if m:
 					key,val = line.split(':',1)
-					lista_nodi_grafo.append(val)
+#					lista_nodi_grafo.append(val)
+					diz_nodi_grafo[val] = val
 			f.close()
 		except IOError, e:
 			pass
@@ -908,7 +926,8 @@ class TwitterMiner:
 		Scarica le informazioni degli utenti scelti casualmente
 		dal file followers_path
 		'''
-		global lista_nodi_grafo
+#		global lista_nodi_grafo
+		global diz_nodi_grafo
 		'''
 		TODO: scegliere il numero casuale di followers in proporzione al
 		numero totale degli stessi.
@@ -919,11 +938,15 @@ class TwitterMiner:
 		if len(lista) == 0:
 			print "\nl'utente ha troppi pochi followers!!!\n"
 			return
+		else:
+			print 'Ho scelto: '+str(len(lista))+' accounts'
 #		num = len(lista)
 		fpdebug = open('DEBUG.log', 'a')
 		for k in lista:
+			k = k.strip().strip('\n')
 			fpdebug.write(str(k))
-			lista_nodi_grafo.append(k.strip().strip('\n'))
+#			lista_nodi_grafo.append(k.strip().strip('\n'))
+			diz_nodi_grafo[k] = k
 		fpdebug.close()
 		try:
 			os.mkdir('followers')
@@ -936,5 +959,5 @@ class TwitterMiner:
 		self.gthreads.set_arcobaleno(0)
 		self.gthreads.set_num(1)
 		self.gthreads.lancia_threads()
-		print '\t IL GRAFO HA NUM NODI: '+str(len(lista_nodi_grafo))
+#		print '\t IL GRAFO HA NUM NODI: '+str(len(lista_nodi_grafo))
 
