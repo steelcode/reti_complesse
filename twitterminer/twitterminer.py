@@ -31,7 +31,7 @@ t_terminati = Queue.Queue()
 diz_followers_target = {}
 diz_nodi_grafo = {}
 counter = 0
-
+MAXVALUE = 15000
 '''
 Classe che gestisce i thread minatori
 '''
@@ -170,8 +170,15 @@ class MinerThreads(threading.Thread):
 				else:
 					info = self.twitter.show_user(screen_name=self.target,include_entities='0')
 			except TwythonError, e:
-				print ' target '+self.target+' errore retrive user info '+str(e)
+				print ' target: '+self.target+' errore retrive user \
+					info: '+str(e)
 				print ' magia: '+str(self.arcobaleno)
+				if e.error_code == 403:
+					var = '403: USER suspended!\n'
+					self.__my_write_error(var, not self.arcobaleno )
+					fpout.close()
+					if os.path.exists(infopath): os.remove(infopath)
+					return
 				hodormito = True
 				self.__dormi(0,False)
 			except ConnectionError, e:
@@ -251,7 +258,7 @@ class MinerThreads(threading.Thread):
 		userpath = self.origin+'/followers/'+self.target+'/user_info_'+self.target+'.txt'
 		try:
 			fpin = open(userpath,'r')
-		except OSError, e:
+		except IOError, e:
 			print 'PUTTANAZZA '+ str(e)
 			return -1
 		for line in fpin:
@@ -262,7 +269,7 @@ class MinerThreads(threading.Thread):
 				m = re.search('friends_count', line)
 			if m:
 				key,val = line.split(':',1)
-				if int(val) < 15000:
+				if int(val) < MAXVALUE:
 					return 1
 		return 0
 	def __my_write_error(self,data,flag):
@@ -668,10 +675,14 @@ class TwitterMiner:
 				nodo = self.__aggiungi_nodo(grafo, target)
 				if not tweet2.has_key(-1):
 					lista = idAtt.items()
-					for item in idItem:
-						nodo.addAttribute(item, tweet2[str(lista[int(item)][0])].strip().strip('\n'))
-					nodo.addAttribute(idAttDegree,str(int(tweet2['friends_count'].strip('\n'))+\
-							int(tweet2['followers_count'].strip('\n'))))
+					try:
+						for item in idItem:
+							nodo.addAttribute(item, tweet2[str(lista[int(item)][0])].strip().strip('\n'))
+						nodo.addAttribute(idAttDegree,str(int(tweet2['friends_count'].strip('\n'))+\
+								int(tweet2['followers_count'].strip('\n'))))
+					except KeyError, e:
+						print 'KEY ERROR, target: '+ target + ' ' \
+						+str(e)
 					nodo.addAttribute(idAttFiglio, 'false')
 			else:
 				nodo = grafo.getNode(target)
