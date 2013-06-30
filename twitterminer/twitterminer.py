@@ -184,7 +184,7 @@ class MinerThreads(threading.Thread):
 					self.__my_write_error(var, not self.arcobaleno )
 					fpout.close()
 					if os.path.exists(infopath): os.remove(infopath)
-					return					
+					return			
 				hodormito = True
 				self.__dormi(0,False)
 			except ConnectionError, e:
