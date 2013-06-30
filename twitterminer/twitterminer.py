@@ -104,8 +104,8 @@ class MinerThreads(threading.Thread):
 			print "Unexpected error:", sys.exc_info()[0]
 			raise
 		limit = rate['resources']['followers']['/followers/ids']['remaining']
-		print self.name+' il limite e: ' + str(limit)+ \
-		' '+str(self.target)+ ' twitter vale: '+ str(self.twitter.get_authorized_tokens)
+		#print self.name+' il limite e: ' + str(limit)+ \
+		#' '+str(self.target)+ ' twitter vale: '+ str(self.twitter.get_authorized_tokens)
 		return limit
 	def __salva_dati(self, data, flag, objtarget):
 		'''
@@ -228,7 +228,7 @@ class MinerThreads(threading.Thread):
 		follower e se uno specifico twitter id e' stato gia' analizzato
 		'''
 		try:
-			cursor_file = open(cursorpath,'a')
+			cursor_file = open(cursorpath,'w')
 		except:
 			print '\t\t\tASD5'
 			pass
