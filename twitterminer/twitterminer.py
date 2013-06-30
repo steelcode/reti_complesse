@@ -179,6 +179,12 @@ class MinerThreads(threading.Thread):
 					fpout.close()
 					if os.path.exists(infopath): os.remove(infopath)
 					return
+				if e.error_code == 404:
+					var = '404: USER NOT ESIST!\n'
+					self.__my_write_error(var, not self.arcobaleno )
+					fpout.close()
+					if os.path.exists(infopath): os.remove(infopath)
+					return					
 				hodormito = True
 				self.__dormi(0,False)
 			except ConnectionError, e:
