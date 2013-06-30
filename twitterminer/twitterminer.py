@@ -360,6 +360,8 @@ class MinerThreads(threading.Thread):
 						#break
 		else:
 			print '\t AAAA target con troppi friends: '+self.target
+			err = '503: TARGET: '+ self.target + ' CON TROPPI FRIENDS!\n'
+			self.__my_write_error(err, flag)
 			return
 	def __get_followers(self, flag):
 		'''
@@ -426,6 +428,8 @@ class MinerThreads(threading.Thread):
 #					print 'NEXTCURSOR VALE: '+str(nextcursor)
 		else:
 			print '\t AAAA target con troppi followers: '+self.target
+			err = '503: TARGET: '+ self.target+ ' CON TROPPI FOLLOWERS!!\n'
+			self.__my_write_error(err,flag)
 			return
 	def run(self):
 		'''
